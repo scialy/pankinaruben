@@ -101,6 +101,7 @@ restaurant_entry = total_hours_melzarim * 3
 total_tip = float(total_tip) - restaurant_entry
 tip_per_hour = total_tip / total_hours_melzarim
 
+# Calcoliamo le mance per i barman
 if total_hours_barmanim > 0:
     # Percentuale barman
     if tip_per_hour >= 100:
@@ -120,6 +121,9 @@ if total_hours_barmanim > 0:
 else:
     barman_tip = 0
 
+# Calcoliamo le mance totali per i camerieri
+total_tip_camerieri = total_tip - (barman_tip * total_hours_barmanim)
+
 # Parametro Ahmash
 if tip_per_hour >= 100:
     parametro_ahmash = 6
@@ -128,7 +132,7 @@ elif tip_per_hour < 100 and tip_per_hour >= 50:
 else:
     parametro_ahmash = total_hours_ahmashim
 
-melzar_tip = (total_tip * ahuz) / (total_hours_melzarim + total_hours_ahmashim / parametro_ahmash)
+melzar_tip = (total_tip_camerieri * ahuz) / (total_hours_melzarim + total_hours_ahmashim / parametro_ahmash)
 ahmash_tip = melzar_tip / parametro_ahmash
 
 results = {}
