@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 
-# calcolo data attuale e titolo
+# Calcolo data attuale e titolo
 data = date.today().strftime("%d/%m/%Y")
 st.header('Pankina ' + data)
 
@@ -16,7 +16,7 @@ shabbat = st.radio(
      'Is shabbat today?',
      ['No', 'Yes'])
 
-#Tips totali
+# Tips totali
 tip_amount = st.text_input("Total tips amount", 0.0)
 
 waiters = st.slider('Number of melzarim', value=1,
@@ -66,24 +66,37 @@ for i in range(int(barmen)):
         st.write(difference.total_seconds() / 3600)
         barmanim[i] = difference.total_seconds() / 3600
 
-if total_hours_barmanim > 0:
-    # Percentuale barman
-    if tip_per_hour >= 100:
-        ahuz = 0.9
-    elif tip_per_hour < 100 and tip_per_hour >= 60:
-        ahuz = 0.93
-    else:
-        ahuz = 0.95
+if int(ahmash) > 0:
+    st.subheader('Hours per ahmash')
 
-    # Check se i camerieri guadagnano più di 72 NIS l'ora
-    if melzar_tip > 72:
-        # Se sì, assegna ai barman 36 NIS per ora
-        barman_tip = 36
+ahmashim = np.array([0.0 for x in range(int(ahmash))])
+
+for i in range(int(ahmash)):
+    start_hours_txt = "Start time ahmash " + str(i + 1)
+    start_time = st.time_input(start_hours_txt, datetime.time(12, 0))
+    start = datetime.datetime.combine(datetime.date.today(), start_time)
+    end_hours_txt = "End time ahmash " + str(i + 1)
+    end_time = st.time_input(end_hours_txt, datetime.time(18, 0))
+    end = datetime.datetime.combine(datetime.date.today(), end_time)
+    difference = end - start
+    if difference.total_seconds() / 3600 < 0:
+        st.write(24 + difference.total_seconds() / 3600)
+        ahmashim[i] = 24 + difference.total_seconds() / 3600
     else:
-        # Altrimenti, calcola normalmente la mancia per i barman
-        barman_tip = (total_tip * (1 - ahuz)) / total_hours_barmanim
+        st.write(difference.total_seconds() / 3600)
+        ahmashim[i] = difference.total_seconds() / 3600
+
+if shabbat == 'No':
+    # First two hours are 35 shekels each
+    melzarim[0] -= 2
+    total_tip = float(tip_amount) - 70
 else:
-    barman_tip = 0
+    total_tip = float(tip_amount)
+
+total_hours_melzarim = np.sum(melzarim)
+total_hours_barmanim = np.sum(barmanim)
+total_hours_ahmashim = np.sum(ahmashim)
+
 restaurant_entry = total_hours_melzarim * 3
 total_tip = float(total_tip) - restaurant_entry
 tip_per_hour = total_tip / total_hours_melzarim
@@ -96,10 +109,16 @@ if total_hours_barmanim > 0:
         ahuz = 0.93
     else:
         ahuz = 0.95
-else:
-    ahuz = 1
 
-barman_tip = (total_tip * (1 - ahuz)) / total_hours_barmanim
+    # Check se i camerieri guadagnano più di 72 NIS l'ora
+    if tip_per_hour > 72:
+        # Se sì, assegna ai barman 36 NIS per ora
+        barman_tip = 36
+    else:
+        # Altrimenti, calcola normalmente la mancia per i barman
+        barman_tip = (total_tip * (1 - ahuz)) / total_hours_barmanim
+else:
+    barman_tip = 0
 
 # Parametro Ahmash
 if tip_per_hour >= 100:
@@ -134,8 +153,8 @@ for i, melzar in enumerate(melzarim):
             a += value
     else:
         # Adjust tip calculation based on hourly rate
-        if melzar_tip >= 72:
-            # Waiter making 72 or more per hour
+        if melzar_tip > 72:
+            # Waiter making more than 72 per hour
             # Calculate the difference between the hourly rate and 72
             difference = melzar_tip - 72
             # Half of the difference is awarded to the bartender
