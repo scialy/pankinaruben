@@ -1,12 +1,18 @@
-import pandas as pd
-import numpy as np
-import streamlit as st
-import datetime
-from datetime import date
-import smtplib, ssl
-from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import date
+import streamlit as st
+import smtplib, ssl
+import pandas as pd
+import numpy as np
+import datetime
+
+##################################### CONFIGURATION ##################################### 
+HARD_WORK_LIMIT = 65
+BASE_SALARY_BARMAN = 40
+FIRST_TWO_HOURS_OF_FIRST_WAITER = 35 #Each hour
+#########################################################################################
 
 def setup_initial_form():
     st.header('Pankina ' + date.today().strftime("%d/%m/%Y"))
@@ -19,6 +25,7 @@ def setup_initial_form():
     barmanim = setup_form_for_worker("barmen")
     ahmash = setup_form_for_worker("ahmash", default_value=0)
     return shabbat, tip_amount, melzarim, barmanim, ahmash
+
 
 def setup_worker_form(worker: str, number: int):
     if number > 0:
@@ -43,10 +50,12 @@ def setup_worker_form(worker: str, number: int):
 
     return workers_arr
 
+
 def setup_form_for_worker(worker, default_value=1):
     number_selected = st.slider(f'Number of {worker}', value=default_value,
               min_value=0, max_value=10, step=1)
     return setup_worker_form(worker, number_selected)
+
 
 def regular_pipeline(total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, total_tip):
     restaurant_fee = total_hours_melzarim * 3
@@ -81,10 +90,12 @@ def regular_pipeline(total_hours_melzarim, total_hours_barmanim, total_hours_ahm
 
     return melzar_tip, barman_tip, ahmash_tip, restaurant_fee
 
+
 def new_pipeline(total_tip, restaurant_fee, total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, ahmash_tip):
     tip_to_distribute = total_tip - restaurant_fee - (ahmash_tip * total_hours_ahmashim)
-    melzar_tip = tip_to_distribute / (total_hours_melzarim + (total_hours_barmanim / 2))
-    barman_tip = melzar_tip / 2
+    tip_to_distribute += (BASE_SALARY_BARMAN * total_hours_barmanim)
+    melzar_tip = tip_to_distribute / (total_hours_melzarim + total_hours_barmanim)
+    barman_tip = melzar_tip - BASE_SALARY_BARMAN
     return melzar_tip, barman_tip
 
 
@@ -92,9 +103,10 @@ shabbat, tip_amount, melzarim, barmanim, ahmashim = setup_initial_form()
 if shabbat == 'No':
     # First two hours are 35 shekels each
     melzarim[0] -= 2
-    total_tip = float(tip_amount) - 70
+    total_tip = float(tip_amount) - (2 * FIRST_TWO_HOURS_OF_FIRST_WAITER)
 else:
     total_tip = float(tip_amount)
+
 
 total_hours_melzarim = np.sum(melzarim)
 total_hours_barmanim = np.sum(barmanim)
@@ -104,11 +116,13 @@ melzar_tip, barman_tip, ahmash_tip, restaurant_fee = regular_pipeline(total_hour
 
 new_meltzar_tip, new_barman_tip = new_pipeline(total_tip, restaurant_fee, total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, ahmash_tip)
 
-if new_meltzar_tip >= 72:
+if new_meltzar_tip >= HARD_WORK_LIMIT:
     melzar_tip = new_meltzar_tip
     barman_tip = new_barman_tip
 
+
 results = {}
+
 
 results['Shabbat'] = str(shabbat)
 results['Total tips'] = str(tip_amount)
@@ -120,7 +134,7 @@ a = 0
 for i, melzar in enumerate(melzarim):
     name = 'Waiter ' + str(i + 1)
     if i == 0 and shabbat == 'No':
-        value = (melzar_tip) * melzar + 70
+        value = (melzar_tip) * melzar + (2 * FIRST_TWO_HOURS_OF_FIRST_WAITER)
         results[name] = str("{:.1f}".format(value))
         a += value
     else:
@@ -188,7 +202,6 @@ if st.button('Send Email'):
         server.ehlo()  # Can be omitted
         server.login(sender_email, password)
         server.sendmail(msg['From'], receiver_email, msg.as_string())
-
         st.success('Email sent successfully')
     except Exception as e:
         # Print any error messages to stdout
