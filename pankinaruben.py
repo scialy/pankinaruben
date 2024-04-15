@@ -111,12 +111,11 @@ if total_hours_barmanim > 0:
     else:
         ahuz = 0.95
 
-    # Check se i camerieri guadagnano più di 72 NIS l'ora
+    # Se il tip per hour supera i 72 NIS, i barman guadagnano l'equivalente di mezza ora dei camerieri
     if tip_per_hour > 72:
-        # Se sì, assegna ai barman 36 NIS per ora
-        barman_tip = 36
+        barman_tip = (total_tip / 2) / total_hours_barmanim
     else:
-        # Altrimenti, calcola normalmente la mancia per i barman
+        # Altrimenti, calcoliamo normalmente la mancia per i barman
         barman_tip = (total_tip * (1 - ahuz)) / total_hours_barmanim
 else:
     barman_tip = 0
@@ -139,7 +138,6 @@ results = {}
 
 results['Shabbat'] = str(shabbat)
 results['Total tips'] = str(tip_amount)
-# results['Tip per hour'] = str("{:.1f}".format(tip_per_hour))
 results['Tip per hour (melzar)'] = str("{:.1f}".format(melzar_tip))
 
 a = 0
@@ -191,10 +189,8 @@ for i, ahmash in enumerate(ahmashim):
 
 results['Restaurant'] = str("{:.1f}".format(restaurant_entry))
 a += restaurant_entry
-# st.write(a)
 
 st.subheader('Tips per worker')
-# st.write(tip_per_hour)
 df = pd.DataFrame.from_dict(results, orient='index')
 df = df.rename({0: 'tips'}, axis='columns')
 df.reset_index(inplace=True)
@@ -208,7 +204,6 @@ password = 'M1chelangel0'
 recipients = ["pankinatlv@gmail.com"]
 receiver_email = [elem.strip().split(',') for elem in recipients]
 
-# Create a secure SSL context
 context = ssl.create_default_context()
 
 msg = MIMEMultipart()
@@ -228,17 +223,16 @@ part1 = MIMEText(html, 'html')
 msg.attach(part1)
 
 if st.button('Send Email'):
-    # Try to log in to server and send email
     try:
         server = smtplib.SMTP(smtp_server, port)
-        server.ehlo()  # Can be omitted
-        server.starttls(context=context)  # Secure the connection
-        server.ehlo()  # Can be omitted
+        server.ehlo()
+        server.starttls(context=context)
+        server.ehlo()
         server.login(sender_email, password)
         server.sendmail(msg['From'], receiver_email, msg.as_string())
         st.success('Email sent successfully')
     except Exception as e:
-        # Print any error messages to stdout
         st.error('Check connection')
     finally:
         server.quit()
+     
