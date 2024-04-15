@@ -113,7 +113,7 @@ if total_hours_barmanim > 0:
 
     # Se il tip per hour supera i 72 NIS, i barman guadagnano l'equivalente di mezza ora dei camerieri
     if tip_per_hour > 72:
-        barman_tip = (total_tip / 2) / total_hours_barmanim
+        barman_tip = min((total_tip / 2) / total_hours_barmanim, total_tip)  # Assicura che il barman non guadagni più del totale delle mance
     else:
         # Altrimenti, calcoliamo normalmente la mancia per i barman
         barman_tip = (total_tip * (1 - ahuz)) / total_hours_barmanim
@@ -235,4 +235,3 @@ if st.button('Send Email'):
         st.error('Check connection')
     finally:
         server.quit()
-     
