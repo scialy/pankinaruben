@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 
-# Calcolo data attuale e titolo
+# Calcolo della data attuale e titolo
 data = date.today().strftime("%d/%m/%Y")
 st.header('Pankina ' + data)
 
@@ -16,40 +16,38 @@ shabbat = st.radio(
      'Is shabbat today?',
      ['No', 'Yes'])
 
-# Tips totali
+# Totale mance
 tip_amount = st.text_input("Total tips amount", 0.0)
 
-waiters = st.slider('Number of melzarim', value=1,
+waiters = st.slider('Number of waiters', value=1,
                     min_value=0, max_value=10, step=1)
-barmen = st.slider('Number of barmanim', value=1,
+barmen = st.slider('Number of barmen', value=1,
                    min_value=0, max_value=10, step=1)
 ahmash = st.slider('Number of ahmash', value=0,
                    min_value=0, max_value=10, step=1)
 
 if int(waiters) > 0:
-    st.subheader('Hours per melzar')
+    st.subheader('Hours per waiter')
 
-melzarim = np.array([0.0 for x in range(int(waiters))])
+waiter_hours = np.array([0.0 for x in range(int(waiters))])
 
 for i in range(int(waiters)):
-    start_hours_txt = "Start time melzar " + str(i + 1)
+    start_hours_txt = "Start time waiter " + str(i + 1)
     start_time = st.time_input(start_hours_txt, datetime.time(10, 0))
     start = datetime.datetime.combine(datetime.date.today(), start_time)
-    end_hours_txt = "End time melzar " + str(i + 1)
+    end_hours_txt = "End time waiter " + str(i + 1)
     end_time = st.time_input(end_hours_txt, datetime.time(17, 30))
     end = datetime.datetime.combine(datetime.date.today(), end_time)
     difference = end - start
     if difference.total_seconds() / 3600 < 0:
-        st.write(24 + difference.total_seconds() / 3600)
-        melzarim[i] = 24 + difference.total_seconds() / 3600
+        waiter_hours[i] = 24 + difference.total_seconds() / 3600
     else:
-        st.write(difference.total_seconds() / 3600)
-        melzarim[i] = difference.total_seconds() / 3600
+        waiter_hours[i] = difference.total_seconds() / 3600
 
 if int(barmen) > 0:
     st.subheader('Hours per barman')
 
-barmanim = np.array([0.0 for x in range(int(barmen))])
+barman_hours = np.array([0.0 for x in range(int(barmen))])
 
 for i in range(int(barmen)):
     start_hours_txt = "Start time barman " + str(i + 1)
@@ -60,16 +58,14 @@ for i in range(int(barmen)):
     end = datetime.datetime.combine(datetime.date.today(), end_time)
     difference = end - start
     if difference.total_seconds() / 3600 < 0:
-        st.write(24 + difference.total_seconds() / 3600)
-        barmanim[i] = 24 + difference.total_seconds() / 3600
+        barman_hours[i] = 24 + difference.total_seconds() / 3600
     else:
-        st.write(difference.total_seconds() / 3600)
-        barmanim[i] = difference.total_seconds() / 3600
+        barman_hours[i] = difference.total_seconds() / 3600
 
 if int(ahmash) > 0:
     st.subheader('Hours per ahmash')
 
-ahmashim = np.array([0.0 for x in range(int(ahmash))])
+ahmash_hours = np.array([0.0 for x in range(int(ahmash))])
 
 for i in range(int(ahmash)):
     start_hours_txt = "Start time ahmash " + str(i + 1)
@@ -80,110 +76,58 @@ for i in range(int(ahmash)):
     end = datetime.datetime.combine(datetime.date.today(), end_time)
     difference = end - start
     if difference.total_seconds() / 3600 < 0:
-        st.write(24 + difference.total_seconds() / 3600)
-        ahmashim[i] = 24 + difference.total_seconds() / 3600
+        ahmash_hours[i] = 24 + difference.total_seconds() / 3600
     else:
-        st.write(difference.total_seconds() / 3600)
-        ahmashim[i] = difference.total_seconds() / 3600
+        ahmash_hours[i] = difference.total_seconds() / 3600
 
 if shabbat == 'No':
-    # First two hours are 35 shekels each
-    melzarim[0] -= 2
+    # Le prime due ore sono 35 shekels ciascuna
+    waiter_hours[0] -= 2
     total_tip = float(tip_amount) - 70
 else:
     total_tip = float(tip_amount)
 
-total_hours_melzarim = np.sum(melzarim)
-total_hours_barmanim = np.sum(barmanim)
-total_hours_ahmashim = np.sum(ahmashim)
+total_hours_waiters = np.sum(waiter_hours)
+total_hours_barmen = np.sum(barman_hours)
+total_hours_ahmashim = np.sum(ahmash_hours)
 
-restaurant_entry = total_hours_melzarim * 3
+restaurant_entry = total_hours_waiters * 3
 total_tip = float(total_tip) - restaurant_entry
-tip_per_hour = total_tip / total_hours_melzarim
+tip_per_hour = total_tip / total_hours_waiters
 
-# Calcoliamo le mance per i barman
-if total_hours_barmanim > 0:
-    # Percentuale barman
-    if tip_per_hour >= 100:
-        ahuz = 0.9
-    elif tip_per_hour < 100 and tip_per_hour >= 60:
-        ahuz = 0.93
-    else:
-        ahuz = 0.95
-
-    # Se il tip per hour supera i 72 NIS, i barman guadagnano l'equivalente di mezza ora dei camerieri
-    if tip_per_hour > 72:
-        barman_tip = min((total_tip / 2) / total_hours_barmanim, total_tip)  # Assicura che il barman non guadagni più del totale delle mance
-    else:
-        # Altrimenti, calcoliamo normalmente la mancia per i barman
-        barman_tip = (total_tip * (1 - ahuz)) / total_hours_barmanim
+# Calcolo differenziale per determinare se il tip per hour supera le 72 NIS
+if tip_per_hour > 72:
+    # Modifica il calcolo delle mance dei barman per far sì che ricevano l'equivalente di mezza ora dei camerieri
+    barman_tip = min((total_tip / 2) / total_hours_barmen, total_tip)  # Assicura che il barman non guadagni più del totale delle mance
 else:
-    barman_tip = 0
-
-# Calcoliamo le mance totali per i camerieri
-total_tip_camerieri = total_tip - (barman_tip * total_hours_barmanim)
+    barman_tip = total_tip / total_hours_barmen
 
 # Parametro Ahmash
-if tip_per_hour >= 100:
-    parametro_ahmash = 6
-elif tip_per_hour < 100 and tip_per_hour >= 50:
-    parametro_ahmash = 5
-else:
-    parametro_ahmash = total_hours_ahmashim
-
-melzar_tip = (total_tip_camerieri * ahuz) / (total_hours_melzarim + total_hours_ahmashim / parametro_ahmash)
-ahmash_tip = melzar_tip / parametro_ahmash
+ahmash_tip = total_tip / total_hours_ahmashim
 
 results = {}
 
 results['Shabbat'] = str(shabbat)
 results['Total tips'] = str(tip_amount)
-results['Tip per hour (melzar)'] = str("{:.1f}".format(melzar_tip))
+results['Tip per hour (waiter)'] = str("{:.1f}".format(tip_per_hour))
 
 a = 0
 
-for i, melzar in enumerate(melzarim):
+for i, waiter in enumerate(waiter_hours):
     name = 'Waiter ' + str(i + 1)
-    if i == 0:
-        if shabbat == 'No':
-            value = (melzar_tip) * melzar + 70
-            results[name] = str("{:.1f}".format(value))
-            a += value
-        else:
-            value = (melzar_tip) * melzar
-            results[name] = str("{:.1f}".format(value))
-            a += value
-    else:
-        # Adjust tip calculation based on hourly rate
-        if melzar_tip > 72:
-            # Waiter making more than 72 per hour
-            # Calculate the difference between the hourly rate and 72
-            difference = melzar_tip - 72
-            # Half of the difference is awarded to the bartender
-            award_to_bartender = (difference / 2) * melzar
-            # Deduct the awarded amount from the waiter's tip
-            value = (melzar_tip - (difference / 2)) * melzar
-            results[name] = str("{:.1f}".format(value))
-            a += value
-            # Award the calculated amount to the bartender
-            barman_name = 'Bartender 1'  # Assuming there's only one bartender
-            results[barman_name] = str("{:.1f}".format(award_to_bartender))
-            a += award_to_bartender
-        else:
-            # Waiter making less than 72 per hour
-            value = (melzar_tip) * melzar
-            results[name] = str("{:.1f}".format(value))
-            a += value
-
-for i, barman in enumerate(barmanim):
-    name = 'Barman ' + str(i + 1)
-    value = barman_tip * barman
+    value = waiter * tip_per_hour
     results[name] = str("{:.1f}".format(value))
     a += value
 
-for i, ahmash in enumerate(ahmashim):
+for i, barman in enumerate(barman_hours):
+    name = 'Barman ' + str(i + 1)
+    value = barman * barman_tip
+    results[name] = str("{:.1f}".format(value))
+    a += value
+
+for i, ahmash in enumerate(ahmash_hours):
     name = 'Ahmash ' + str(i + 1)
-    value = ahmash_tip * ahmash
+    value = ahmash * ahmash_tip
     results[name] = str("{:.1f}".format(value))
     a += value
 
@@ -198,7 +142,7 @@ df = df.rename(columns={'index': 'worker'})
 st.write(df)
 
 smtp_server = "smtp.gmail.com"
-port = 587  # For starttls
+port = 587  # Per starttls
 sender_email = "pankinatip@gmail.com"
 password = 'M1chelangel0'
 recipients = ["pankinatlv@gmail.com"]
@@ -225,9 +169,9 @@ msg.attach(part1)
 if st.button('Send Email'):
     try:
         server = smtplib.SMTP(smtp_server, port)
-        server.ehlo()
-        server.starttls(context=context)
-        server.ehlo()
+        server.ehlo()  # Può essere omesso
+        server.starttls(context=context)  # Protegge la connessione
+        server.ehlo()  # Può essere omesso
         server.login(sender_email, password)
         server.sendmail(msg['From'], receiver_email, msg.as_string())
         st.success('Email sent successfully')
