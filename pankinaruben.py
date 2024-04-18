@@ -8,11 +8,13 @@ import pandas as pd
 import numpy as np
 import datetime
 
-##################################### CONFIGURATION ##################################### 
-HARD_WORK_LIMIT = 65
-BASE_SALARY_BARMAN = 40
+##################################### CONFIGURATION #####################################
+MINIMUM_FOR_WAITER_BEFORE_GIVING_TO_BARMAN = 50
+BARMAN_PERCENTAGE = 0.33
+MAXIMUM_HOURS_FOR_ALL_BARMEN_TOGETHER = 15 # Hours
 FIRST_TWO_HOURS_OF_FIRST_WAITER = 35 #Each hour
-#########################################################################################
+#####################################cinoli
+# ####################################################
 
 def setup_initial_form():
     st.header('Pankina ' + date.today().strftime("%d/%m/%Y"))
@@ -21,10 +23,10 @@ def setup_initial_form():
         ['No', 'Yes'])
     # Tips totali
     tip_amount = st.text_input("Total tips amount", 0.0)
-    melzarim = setup_form_for_worker("melzar")
-    barmanim = setup_form_for_worker("barmen")
+    waiters = setup_form_for_worker("melzar")
+    barmans = setup_form_for_worker("barmen")
     ahmash = setup_form_for_worker("ahmash", default_value=0)
-    return shabbat, tip_amount, melzarim, barmanim, ahmash
+    return shabbat, tip_amount, waiters, barmans, ahmash
 
 
 def setup_worker_form(worker: str, number: int):
@@ -93,10 +95,18 @@ def regular_pipeline(total_hours_melzarim, total_hours_barmanim, total_hours_ahm
 
 def new_pipeline(total_tip, restaurant_fee, total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, ahmash_tip):
     tip_to_distribute = total_tip - restaurant_fee - (ahmash_tip * total_hours_ahmashim)
-    tip_to_distribute += (BASE_SALARY_BARMAN * total_hours_barmanim)
-    melzar_tip = tip_to_distribute / (total_hours_melzarim + total_hours_barmanim)
-    barman_tip = melzar_tip - BASE_SALARY_BARMAN
-    return melzar_tip, barman_tip
+
+    meltzarim = MINIMUM_FOR_WAITER_BEFORE_GIVING_TO_BARMAN * total_hours_melzarim
+
+    if tip_to_distribute >= meltzarim:
+        tip_to_distribute -= meltzarim
+        barmanim = MINIMUM_FOR_WAITER_BEFORE_GIVING_TO_BARMAN * BARMAN_PERCENTAGE * min(total_hours_barmanim, MAXIMUM_HOURS_FOR_ALL_BARMEN_TOGETHER)
+        if tip_to_distribute >= barmanim:
+            tip_to_distribute -= barmanim
+            melzar_bonus = tip_to_distribute / (total_hours_melzarim + (BARMAN_PERCENTAGE * min(total_hours_barmanim, MAXIMUM_HOURS_FOR_ALL_BARMEN_TOGETHER)))
+            return MINIMUM_FOR_WAITER_BEFORE_GIVING_TO_BARMAN + melzar_bonus, barmanim + (melzar_bonus * BARMAN_PERCENTAGE * min(total_hours_barmanim, MAXIMUM_HOURS_FOR_ALL_BARMEN_TOGETHER))
+        return MINIMUM_FOR_WAITER_BEFORE_GIVING_TO_BARMAN, tip_to_distribute
+    return tip_to_distribute / total_hours_melzarim, 0
 
 
 shabbat, tip_amount, melzarim, barmanim, ahmashim = setup_initial_form()
@@ -112,40 +122,34 @@ total_hours_melzarim = np.sum(melzarim)
 total_hours_barmanim = np.sum(barmanim)
 total_hours_ahmashim = np.sum(ahmashim)
 
-melzar_tip, barman_tip, ahmash_tip, restaurant_fee = regular_pipeline(total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, total_tip)
+_, _, ahmash_tip, restaurant_fee = regular_pipeline(total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, total_tip)
 
-new_meltzar_tip, new_barman_tip = new_pipeline(total_tip, restaurant_fee, total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, ahmash_tip)
-
-if new_meltzar_tip >= HARD_WORK_LIMIT:
-    melzar_tip = new_meltzar_tip
-    barman_tip = new_barman_tip
-
+melzar_per_hour, barmanim_tip_for_all = new_pipeline(total_tip, restaurant_fee, total_hours_melzarim, total_hours_barmanim, total_hours_ahmashim, ahmash_tip)
 
 results = {}
-
 
 results['Shabbat'] = str(shabbat)
 results['Total tips'] = str(tip_amount)
 # results['Tip per hour'] = str("{:.1f}".format(tip_per_hour))
-results['Tip per hour (melzar)'] = str("{:.1f}".format(melzar_tip))
+results['Tip per hour (melzar)'] = str("{:.1f}".format(melzar_per_hour))
 
 a = 0
 
 for i, melzar in enumerate(melzarim):
     name = 'Waiter ' + str(i + 1)
     if i == 0 and shabbat == 'No':
-        value = (melzar_tip) * melzar + (2 * FIRST_TWO_HOURS_OF_FIRST_WAITER)
+        value = (melzar_per_hour) * melzar + (2 * FIRST_TWO_HOURS_OF_FIRST_WAITER)
         results[name] = str("{:.1f}".format(value))
         a += value
     else:
-        value = (melzar_tip) * melzar
+        value = (melzar_per_hour) * melzar
         results[name] = str("{:.1f}".format(value))
         a += value
 
 
 for i, barman in enumerate(barmanim):
     name = 'Barman ' + str(i + 1)
-    value = barman_tip * barman
+    value = barmanim_tip_for_all * (barman / total_hours_barmanim)
     results[name] = str("{:.1f}".format(value))
     a += value
 
@@ -157,6 +161,7 @@ for i, ahmash in enumerate(ahmashim):
 
 results['Restaurant'] = str("{:.1f}".format(restaurant_fee))
 a += restaurant_fee
+results['Total'] = a
 # st.write(a)
 
 st.subheader('Tips per worker')
